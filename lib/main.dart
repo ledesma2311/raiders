@@ -1,38 +1,33 @@
-import 'dart:ffi';
-import 'package:english_words/english_words.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'dart:async';
-import 'package:flutter/widgets.dart';
-import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:path/path.dart';
+import 'dart:async';
 
 void main() {
   runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  const MyApp({Key? key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Flutter Demo',
       theme: ThemeData(
-      
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
+        primaryColor: Color.fromARGB(255, 20, 38, 199), // Color primario 
+        colorScheme: ColorScheme.fromSwatch().copyWith(secondary: Colors.white), // Color secundario 
+        scaffoldBackgroundColor: Colors.white, // Color de fondo de la pantalla
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const MyHomePage(title: 'Practica'),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
 
- 
+class MyHomePage extends StatefulWidget {
+  const MyHomePage({Key? key, required this.title});
+
   final String title;
 
   @override
@@ -40,105 +35,210 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  TextEditingController _usernameController = TextEditingController();
-  TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _usernameController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
   late Database _db;
+  List<Map<String, dynamic>> users = [];
+  bool isLoggedIn = false;
 
   @override
-  void initState(){
+  void initState() {
     super.initState();
     initDB();
   }
-  void initDB() async{
-    _db = await openDatabase(
-      join(await getDatabasesPath(), "login_database.db"),
+
+  void initDB() async {
+    _db = await openDatabase(join(await getDatabasesPath(), 'login_database.db'),
       onCreate: (db, version) {
         return db.execute(
-          "CREATE TABLE users(id INTEGER PRIMARY KEY, username TEXT, Password TEXT)"
+          "CREATE TABLE users(id INTEGER PRIMARY KEY, username TEXT, password TEXT)",
         );
       },
       version: 1,
     );
-    CheckAndInsertData();
+    checkAndInsertData();
   }
 
-  Future<void> CheckAndInsertData () async {//verifica si la tabla esta vacia
-  final count =
-   Sqflite.firstIntValue (await _db.rawQuery("SELECT COUNT(*) FROM users"));
-   if (count==0) {
-    await _db.transaction((txn) async {
-      await txn.rawInsert(
-        "INSERT INTO users(id,usarname,password) VALUES (?,?,?)",
-        [1,"John","12345"]);
-
+  Future<void> checkAndInsertData() async {
+    final count =
+        Sqflite.firstIntValue(await _db.rawQuery('SELECT COUNT(*) FROM users'));
+    if (count == 0) {
+      await _db.transaction((txn) async {
         await txn.rawInsert(
-        "INSERT INTO users(id,usarname,password) VALUES (?,?,?)",
-        [2,"Alice","12345"]);
-    });
-   }
-  }
-
-Widget build(BuildContext context) {
-  Future<void> _login() async {
-    final List<Map<String, dynamic>> users = await _db.query('users',
-      where: 'username = ? AND password = ?',
-      whereArgs: [_usernameController.text, _passwordController.text]);
-
-    if (users.isNotEmpty) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => HomeScreen()),
-      );
-    } else {
-      showDialog(
-        context: context,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            title: Text('Error'),
-            content: Text('Invalid username or password.'),
-            actions: <Widget>[
-              TextButton(
-                child: Text('OK'),
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-              ),
-            ],
-          );
-        },
-      );
+            'INSERT INTO users(id, username, password) VALUES(?,?,?)',
+            [1, 'John', '12345']);
+        await txn.rawInsert(
+            'INSERT INTO users(id, username, password) VALUES(?,?,?)',
+            [2, 'Jesus', 'Ledesma']);
+        await txn.rawInsert(
+            'INSERT INTO users(id, username, password) VALUES(?,?,?)',
+            [3, 'Eduardo', 'Ledesma1']);
+        await txn.rawInsert(
+            'INSERT INTO users(id, username, password) VALUES(?,?,?)',
+            [4, 'Enrique', 'Ledesma2']);
+      });
     }
   }
 
-  return Scaffold(
-    body: Column(
-      children: [
-        Text('Prueba'),
+  Future<void> getUsers() async {
+    final List<Map<String, dynamic>> userList = await _db.query('users');
+    setState(() {
+      users = userList;
+    });
+  }
 
-        // Botón para practicar
-        ElevatedButton(
-          onPressed: () {
-            // Acción al presionar el botón
-          },
-          child: Text('Next'),
-        ),
-      ],
-    ),
-  );
-}
+  Future<void> addUser(String username, String password) async {
+    await _db.rawInsert(
+      'INSERT INTO users(id, username, password) VALUES(NULL,?,?)',
+      [username, password],
+    );
+    getUsers();
+  }
 
-}
-
-class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    Future<void> login() async {
+      final List<Map<String, dynamic>> users = await _db.query('users',
+          where: 'username = ? AND password = ?',
+          whereArgs: [_usernameController.text, _passwordController.text]);
+
+      if (users.isNotEmpty) {
+        setState(() {
+          isLoggedIn = true;
+        });
+        getUsers();
+      } else {
+        showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text('Error'),
+              content: const Text('Contraseña o nombre incorrecto.'),
+              actions: <Widget>[
+                TextButton(
+                  child: const Text('OK'),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                ),
+              ],
+            );
+          },
+        );
+      }
+    }
+
     return Scaffold(
       appBar: AppBar(
-        title: Text('Home'),
+        title: Text(widget.title),
+        actions: [
+          if (isLoggedIn)
+            IconButton(
+              icon: Icon(Icons.logout),
+              onPressed: () {
+                setState(() {
+                  isLoggedIn = false;
+                  _usernameController.text = '';
+                  _passwordController.text = '';
+                });
+              },
+            ),
+        ],
       ),
-      body: Center(
-        child: Text('Welcome!'),
-      ),
+      body: isLoggedIn
+          ? ListView.builder(
+              itemCount: users.length,
+              itemBuilder: (BuildContext context, int index) {
+                return ListTile(
+                  title: Text('User'),
+                  subtitle: Text(users[index]['username']),
+                );
+              },
+            )
+          : Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: <Widget>[
+                  TextField(
+                    controller: _usernameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Username',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  SizedBox(height: 20),
+                  TextField(
+                    controller: _passwordController,
+                    obscureText: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Password',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: () {
+                      login();
+                    },
+                    child: const Text('Login'),
+                  ),
+                ],
+              ),
+            ),
+      floatingActionButton: isLoggedIn
+          ? FloatingActionButton(
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (BuildContext context) {
+                    return AlertDialog(
+                      title: const Text('Agregar Usuario'),
+                      content: Column(
+                        children: [
+                          TextField(
+                            controller: _usernameController,
+                            decoration: const InputDecoration(
+                              labelText: 'Username',
+                              border: OutlineInputBorder(),
+                            ),
+                          ),
+                          SizedBox(height: 20),
+                          TextField(
+                            controller: _passwordController,
+                            obscureText: true,
+                            decoration: const InputDecoration(
+                              labelText: 'Password',
+                              border: OutlineInputBorder(),
+                            ),
+                          ),
+                        ],
+                      ),
+                      actions: <Widget>[
+                        TextButton(
+                          child: const Text('Cancelar'),
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                          },
+                        ),
+                        TextButton(
+                          child: const Text('Agregar'),
+                          onPressed: () {
+                            addUser(
+                              _usernameController.text,
+                              _passwordController.text,
+                            );
+                            Navigator.of(context).pop();
+                          },
+                        ),
+                      ],
+                    );
+                  },
+                );
+              },
+              child: Icon(Icons.add),
+            )
+          : null,
     );
   }
 }
