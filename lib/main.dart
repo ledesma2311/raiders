@@ -24,7 +24,6 @@ class MyApp extends StatelessWidget {
   }
 }
 
-
 class MyHomePage extends StatefulWidget {
   const MyHomePage({Key? key, required this.title});
 
@@ -40,6 +39,7 @@ class _MyHomePageState extends State<MyHomePage> {
   late Database _db;
   List<Map<String, dynamic>> users = [];
   bool isLoggedIn = false;
+  int? selectedUserId;
 
   @override
   void initState() {
@@ -69,13 +69,7 @@ class _MyHomePageState extends State<MyHomePage> {
             [1, 'John', '12345']);
         await txn.rawInsert(
             'INSERT INTO users(id, username, password) VALUES(?,?,?)',
-            [2, 'Jesus', 'Ledesma']);
-        await txn.rawInsert(
-            'INSERT INTO users(id, username, password) VALUES(?,?,?)',
-            [3, 'Eduardo', 'Ledesma1']);
-        await txn.rawInsert(
-            'INSERT INTO users(id, username, password) VALUES(?,?,?)',
-            [4, 'Enrique', 'Ledesma2']);
+            [2, 'Alice', '12345']);
       });
     }
   }
@@ -87,11 +81,28 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
-  Future<void> addUser(String username, String password) async {
-    await _db.rawInsert(
-      'INSERT INTO users(id, username, password) VALUES(NULL,?,?)',
-      [username, password],
+ Future<void> addUser(String username, String password) async {
+  await _db.rawInsert(
+    'INSERT INTO users(id, username, password) VALUES(NULL,?,?)',
+    [username, password],
+  );
+  getUsers();
+  _usernameController.clear();
+  _passwordController.clear();
+}
+
+  Future<void> updateUser(int id, String username, String password) async {
+    await _db.rawUpdate(
+      'UPDATE users SET username = ?, password = ? WHERE id = ?',
+      [username, password, id],
     );
+    getUsers();
+    _usernameController.clear();
+    _passwordController.clear();
+  }
+
+  Future<void> deleteUser(int id) async {
+    await _db.rawDelete('DELETE FROM users WHERE id = ?', [id]);
     getUsers();
   }
 
@@ -152,6 +163,80 @@ class _MyHomePageState extends State<MyHomePage> {
                 return ListTile(
                   title: Text('User'),
                   subtitle: Text(users[index]['username']),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: Icon(Icons.edit),
+                        onPressed: () {
+                          setState(() {
+                            selectedUserId = users[index]['id'];
+                            _usernameController.text = users[index]['username'];
+                            _passwordController.text = users[index]['password'];
+                          });
+                          showDialog(
+                            context: context,
+                            builder: (BuildContext context) {
+                              return AlertDialog(
+                                title: Text('Editar Usuario'),
+                                content: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    TextField(
+                                      controller: _usernameController,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Username',
+                                        border: OutlineInputBorder(),
+                                      ),
+                                    ),
+                                    SizedBox(height: 20),
+                                    TextField(
+                                      controller: _passwordController,
+                                      obscureText: true,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Password',
+                                        border: OutlineInputBorder(),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                actions: <Widget>[
+                                  TextButton(
+                                    child: const Text('Cancelar'),
+                                    onPressed: () {
+                                      setState(() {
+                                        selectedUserId = null;
+                                        _usernameController.clear();
+                                        _passwordController.clear();
+                                      });
+                                      Navigator.of(context).pop();
+                                    },
+                                  ),
+                                  TextButton(
+                                    child: const Text('Guardar'),
+                                    onPressed: () {
+                                      updateUser(
+                                        users[index]['id'],
+                                        _usernameController.text,
+                                        _passwordController.text,
+                                      );
+                                      Navigator.of(context).pop();
+                                    },
+                                  ),
+                                ],
+                              );
+                            },
+                          );
+                        },
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.delete),
+                        onPressed: () {
+                          deleteUser(users[index]['id']);
+                        },
+                      ),
+                    ],
+                  ),
                 );
               },
             )
@@ -195,6 +280,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     return AlertDialog(
                       title: const Text('Agregar Usuario'),
                       content: Column(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           TextField(
                             controller: _usernameController,
